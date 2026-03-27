@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ライフゲーム</title>
+    <meta name="viewport" content="width=device.width, initial-scale=1.0">
+    <script type="module" src="https://pyscript.net/releases/2025.8.1/core.js"></script>
+    <style>
+        @keyframes hg_spin {to {transform: rotate(360deg);}}
+        .hourglass {font-size: 5em; display: inline-block; animation: hg_spin 4s linear infinite;}
+    </style>
+</head>
+<body style="text-align: center;">
+    <div id="loading">
+        <div class="hourglass">⏳</div>
+        <div>読み込み中です ... 少々お待ちください</div>
+    </div>
+    <div id="content" style="display:none;">
+        <select id="initial_value">
+            <option value="random">random</option>
+            <option value="3line">blinker(3 line)</option>
+            <option value="4line">beehive(4 line)</option>
+            <option value="5line">5 line</option>
+            <option value="6line">6 line</option>
+            <option value="7line">7 line</option>
+            <option value="8line">8 line</option>
+            <option value="9line">9 line</option>
+            <option value="10line">10 line</option>
+            <option value="11line">11 line</option>
+            <option value="12line">12 line</option>
+            <option value="BEECON-C">beecon</option>
+            <option value="CLOCK-C">clock</option>
+            <option value="TOAD-C">toad</option>
+            <option value="LSPACESHIP-C">light weight spaceship</option>
+            <option value="MSPACESHIP-C">middle weight spaceship</option>
+            <option value="HSPACESHIP-C">heavy weight spaceship</option>
+            <option value="GLIDER-UL">glider</option>
+            <option value="RPENTOMINO-C">r-pentomino</option>
+            <option value="DIEHARD-C">die hard</option>
+            <option value="ACORN-C">acorn</option>
+            <option value="GLIDERGUN-C">glider gun</option>
+        </select>
+        <button mpy-click="start">開始</button><br><br>
+        <canvas id="canvas" width="400" height="400"></canvas>
+    </div>
+</body>    
+<script type="mpy">
+    from pyscript import document
+    document.getElementById("loading").style.display="none"
+    document.getElementById("content").style.display="block"
+
+    import random
+    from js import document, setTimeout, alert
+    import time
+    import re
+
+    DEAD, ALIVE = 0, 1
+    COLORS = ["white", "red"]
+    SIZE = 10
+    COLS = 400 // SIZE
+    ROWS = 400 // SIZE
+
+    BEECON = [
+        "0011",
+        "0011",
+        "1100",
+        "1100"
+    ]
+
+    CLOCK = [
+        "0010",
+        "1010",
+        "0101",
+        "0100"
+    ]
+
+    TOAD = [
+        "0010",
+        "1001",
+        "1001",
+        "0100"
+    ]
+
+    LSPACESHIP = [
+        "01001",
+        "10000",
+        "10001",
+        "11110"
+    ]
+
+    MSPACESHIP = [
+        "000100",
+        "010001",
+        "100000",
+        "100001",
+        "111110"
+    ]
+
+    HSPACESHIP = [
+        "0001100",
+        "0100001",
+        "1000000",
+        "1000001",
+        "1111110"
+    ]
+
+    GLIDER = [
+        "000000",
+        "001000",
+        "000100",
+        "011100",
+        "000000"
+    ]
+
+    RPENTOMINO = [
+        "00000",
+        "00110",
+        "01100",
+        "00100",
+        "00000"
+    ]
+
+    DIEHARD = [
+        "000000000000",
+        "000000000000",
+        "000000001000",
+        "001100000000",
+        "000100011100",
+        "000000000000",
+        "000000000000"
+    ]
+
+    ACORN = [
+        "0000000000",
+        "0001000000",
+        "0000010000",
+        "0011001110",
+        "0000000000"
+    ]
+
+    GLIDERGUN = [
+        "00000000000000000000000000100000000000",
+        "00000000000000000000000010100000000000",
+        "00000000000000110000001100000000000011",
+        "00000000000001000100001100000000000011",
+        "00110000000010000010001100000000000000",
+        "00110000000010001011000010100000000000",
+        "00000000000010000010000000100000000000",
+        "00000000000001000100000000000000000000",
+        "00000000000000110000000000000000000000"
+    ]
+
+    canvas = document.getElementById("canvas")
+    context = canvas.getContext("2d")
+
+    def next_generation(cells):
+        new_cells = [[DEAD] * COLS for _ in range(ROWS)]
+
+        for y in range(ROWS):
+            for x in range(COLS):
+                count = count_alive_cells(cells, x, y)
+                if cells[y][x] == ALIVE:
+                    if count == 2 or count == 3:
+                        new_cells[y][x] = ALIVE
+                else:
+                    if count == 3:
+                        new_cells[y][x] = ALIVE
+        
+        return new_cells
+
+    def count_alive_cells(cells, x, y):
+        count = 0
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dy == 0 and dx == 0:
+                    continue
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < COLS and 0 <= ny < ROWS:
+                    count += cells[ny][nx]
+        return count
+
+    def draw_canvas():
+        for y in range(ROWS):
+            for x in range(COLS):
+                color = COLORS[cells[y][x]]
+                context.fillStyle = color
+                context.fillRect(x *  SIZE, y * SIZE, SIZE, SIZE)
+                context.strokeRect(x * SIZE, y * SIZE, SIZE, SIZE)
+
+    def update():
+        global cells
+        cells = next_generation(cells)
+        draw_canvas()
+        setTimeout(update, 500)
+
+    def start(event):
+        global cells
+        value = document.getElementById("initial_value").value
+        cells = init(value)
+        draw_canvas()
+        setTimeout(update, 2000)
+
+    def init(value):        
+        if value == "random":
+            return [[random.choice([DEAD, ALIVE]) for x in range(COLS)] for y in range(ROWS)]
+
+        cells = [[DEAD for x in range(COLS)] for y in range(ROWS)]
+        result = re.search(r"^(\d+)line", value)
+        if result:
+            num = int(result.group(1))
+            return init_line(num, cells)
+
+        shape, pos = value.split("-")
+        return init_shape(eval(shape), pos, cells)
+
+    def init_line(num, cells):
+        y = ROWS // 2
+        x = (COLS - num) // 2
+        for i in range(num):
+            cells[y][x + i] = ALIVE
+        return cells
+
+    def init_shape(shape, pos, cells):
+        dy, dx = 0, 0
+        if pos == "C":
+            dy = (ROWS - len(shape)) // 2
+            dx = (COLS - len(shape[0])) // 2
+        elif pos == "CL":
+            dy = (ROWS - len(shape)) // 2
+
+        for y in range(len(shape)):
+            for x in range(len(shape[y])):
+                if shape[y][x] == '1':
+                    cells[y + dy][x + dx] = ALIVE
+        return cells
+
+</script>
+</html>
